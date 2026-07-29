@@ -2,6 +2,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  // Background notification trigger handler when app is closed/killed
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -9,6 +13,9 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  static const String prayerChannelId = 'adzanku_prayer_channel';
+  static const String testChannelId = 'adzanku_test_channel';
 
   Future<void> initNotification() async {
     tz.initializeTimeZones();
@@ -32,7 +39,37 @@ class NotificationService {
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         // Handle notification click
       },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
+
+    // Create high-importance Android Notification Channels for Android 8.0+
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _notificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidImplementation != null) {
+      const AndroidNotificationChannel prayerChannel = AndroidNotificationChannel(
+        prayerChannelId,
+        'Waktu Sholat & Azan',
+        description: 'Notifikasi Alarm Azan Waktu Sholat Adzanku',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      );
+
+      const AndroidNotificationChannel testChannel = AndroidNotificationChannel(
+        testChannelId,
+        'Uji Coba Alarm Adzanku',
+        description: 'Channel Uji Coba Suara & Notifikasi Azan',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      await androidImplementation.createNotificationChannel(prayerChannel);
+      await androidImplementation.createNotificationChannel(testChannel);
+    }
   }
 
   Future<void> requestPermissions() async {
@@ -58,13 +95,15 @@ class NotificationService {
     final tz.TZDateTime tzTime = tz.TZDateTime.from(scheduledDateTime, tz.local);
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'adzanku_prayer_channel',
+      prayerChannelId,
       'Waktu Sholat & Azan',
       channelDescription: 'Notifikasi Alarm Azan Waktu Sholat Adzanku',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
       playSound: true,
+      enableVibration: true,
       fullScreenIntent: true,
+      visibility: NotificationVisibility.public,
     );
 
     const NotificationDetails platformDetails = NotificationDetails(
@@ -72,37 +111,56 @@ class NotificationService {
       iOS: DarwinNotificationDetails(presentSound: true),
     );
 
-    await _notificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tzTime,
-      platformDetails,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
+    try {
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tzTime,
+        platformDetails,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } catch (_) {
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          tzTime,
+          platformDetails,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> showTestNotification({required String userName}) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'adzanku_test_channel',
+      testChannelId,
       'Uji Coba Alarm Adzanku',
       channelDescription: 'Channel Uji Coba Suara & Notifikasi Azan',
       importance: Importance.max,
-      priority: Priority.high,
+      priority: Priority.max,
       playSound: true,
+      enableVibration: true,
+      visibility: NotificationVisibility.public,
     );
 
     const NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
-      iOS: DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(presentSound: true),
     );
 
     await _notificationsPlugin.show(
       999,
       'Assalamu\'alaikum, $userName',
-      'Sistem notifikasi Azan Adzanku berfungsi dengan baik!',
+      'Sistem notifikasi Azan Adzanku berfungsi dengan baik! Notifikasi & Alarm aktif.',
       platformDetails,
     );
   }

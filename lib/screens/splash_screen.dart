@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/permission_service.dart';
+import '../widgets/permission_dialog.dart';
 import 'main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,19 +41,45 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animationController.forward();
 
-    Timer(const Duration(milliseconds: 2600), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MainNavigationScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-        );
-      }
+    Timer(const Duration(milliseconds: 2200), () {
+      _checkPermissionsAndProceed();
     });
+  }
+
+  void _checkPermissionsAndProceed() async {
+    if (!mounted) return;
+
+    final hasPermissions = await PermissionService().hasEssentialPermissions();
+
+    if (hasPermissions) {
+      _navigateToHome();
+    } else {
+      if (!mounted) return;
+      // Prompt user with permission dialog & system popups on initial start
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PermissionDialog(
+          onGranted: () {
+            _navigateToHome();
+          },
+        ),
+      );
+    }
+  }
+
+  void _navigateToHome() {
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const MainNavigationScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 600),
+        ),
+      );
+    }
   }
 
   @override
@@ -83,7 +111,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         child: SafeArea(
           child: Stack(
             children: [
-              // Background Islamic Dome Watermark Pattern
               Positioned(
                 bottom: -50,
                 right: -50,
@@ -104,7 +131,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Logo Container Card with Glassmorphism Glow
                             Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
@@ -145,7 +171,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                             const SizedBox(height: 28),
 
-                            // Arabic Calligraphy Subtitle
                             Text(
                               'أَذَانُكِي',
                               style: GoogleFonts.amiri(
@@ -158,7 +183,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                             const SizedBox(height: 6),
 
-                            // App Name
                             Text(
                               'Adzanku',
                               style: GoogleFonts.plusJakartaSans(
@@ -171,7 +195,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                             const SizedBox(height: 8),
 
-                            // Tagline
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
@@ -193,7 +216,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                             const SizedBox(height: 48),
 
-                            // Loading Progress Bar
                             SizedBox(
                               width: 140,
                               child: LinearProgressIndicator(
@@ -211,7 +233,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
               ),
 
-              // Bottom Version Tag
               Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(

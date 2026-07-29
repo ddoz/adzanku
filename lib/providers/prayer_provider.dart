@@ -102,16 +102,22 @@ class PrayerProvider extends ChangeNotifier {
     if (_schedule == null) return;
     await _notificationService.cancelAllNotifications();
 
+    final now = DateTime.now();
     int id = 1;
     for (var prayer in _schedule!.timings) {
       if (prayer.isAlarmActive &&
           prayer.englishName != 'Sunrise' &&
           prayer.englishName != 'Imsak') {
+        var scheduledDate = prayer.dateTime;
+        if (scheduledDate.isBefore(now)) {
+          scheduledDate = scheduledDate.add(const Duration(days: 1));
+        }
+
         await _notificationService.schedulePrayerAlarm(
           id: id++,
           title: 'Waktu Sholat ${prayer.name}',
           body: 'Telah masuk waktu sholat ${prayer.name} untuk wilayah ${_schedule!.locationName} dan sekitarnya.',
-          scheduledDateTime: prayer.dateTime,
+          scheduledDateTime: scheduledDate,
         );
       }
     }
